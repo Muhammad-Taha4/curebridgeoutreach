@@ -70,7 +70,7 @@ export function requestLogger(req, res, next) {
 // ===== API KEY AUTHENTICATION =====
 export function authenticateAPI(req, res, next) {
   // Health check is public
-  if (req.path === "/api/health") return next();
+  if (req.path === "/api/health" || req.path === "/health") return next();
   
   const apiKey = req.headers["x-api-key"] || req.query.api_key;
   const envKey = process.env.API_KEY;

@@ -1,0 +1,9 @@
+{
+  "buildCommand": "cd outreachai-frontend && npm install && npm run build",
+  "outputDirectory": "outreachai-frontend/dist",
+  "installCommand": "cd outreachai-frontend && npm install",
+  "framework": "vite",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

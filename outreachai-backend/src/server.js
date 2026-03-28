@@ -48,16 +48,14 @@ import { syncReplies, checkAllReplies } from "./replyChecker.js";
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// (Health check moved below CORS)
 // ===== MIDDLEWARE =====
 app.use(helmet({ contentSecurityPolicy: false })); // CSP disabled for inline styles
 app.use(compression());
 app.use(cors({ 
   origin: function(origin, callback) {
-    if (!origin) return callback(null, true);
-    if (origin.includes('localhost') || origin.includes('127.0.0.1')) return callback(null, true);
-    if (origin === process.env.FRONTEND_URL) return callback(null, true);
-    callback(null, true);
+    const allowed = ['localhost', '127.0.0.1', 'curebridge-frontend.vercel.app', 'onrender.com'];
+    if (!origin || allowed.some(a => origin.includes(a))) return callback(null, true);
+    callback(null, true); // Still allow others to prevent breakage, but be explicit about main app
   },
   credentials: true
 }));
@@ -66,23 +64,6 @@ app.use(securityHeaders);
 app.use(sanitizeBody);
 app.use(validateInputLengths);
 app.use(requestLogger);
-
-// ============================
-// HEALTH CHECK (Defined after CORS, before Auth)
-// ============================
-app.get("/api/health", async (req, res) => {
-  const status = { server: "ok", uptime: process.uptime(), timestamp: new Date().toISOString(), database: "connecting...", redis: "connecting..." };
-  try {
-    const { data } = await supabase.from("app_settings").select("key").limit(1);
-    status.database = data ? "connected" : "error";
-  } catch { status.database = "error"; }
-  try {
-    const q = await getQueueStatus();
-    status.redis = q.error ? "error" : "connected";
-    status.queueLength = q.queueLength;
-  } catch { status.redis = "error"; }
-  res.status(200).json(status);
-});
 
 // API key authentication on all /api routes except /api/health
 app.use("/api", authenticateAPI);
@@ -102,7 +83,22 @@ const validate = (req, res, next) => {
   next();
 };
 
-// (Health check moved above auth)
+// ============================
+// HEALTH CHECK
+// ============================
+app.get("/api/health", async (req, res) => {
+  const status = { server: "ok", uptime: process.uptime(), timestamp: new Date().toISOString(), database: "connecting...", redis: "connecting..." };
+  try {
+    const { data } = await supabase.from("app_settings").select("key").limit(1);
+    status.database = data ? "connected" : "error";
+  } catch { status.database = "error"; }
+  try {
+    const q = await getQueueStatus();
+    status.redis = q.error ? "error" : "connected";
+    status.queueLength = q.queueLength;
+  } catch { status.redis = "error"; }
+  res.status(200).json(status);
+});
 
 // ============================
 // LEADS API

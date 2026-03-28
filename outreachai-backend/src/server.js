@@ -53,9 +53,10 @@ app.use(helmet({ contentSecurityPolicy: false })); // CSP disabled for inline st
 app.use(compression());
 app.use(cors({ 
   origin: function(origin, callback) {
-    const allowed = ['localhost', '127.0.0.1', 'curebridge-frontend.vercel.app', 'onrender.com'];
-    if (!origin || allowed.some(a => origin.includes(a))) return callback(null, true);
-    callback(null, true); // Still allow others to prevent breakage, but be explicit about main app
+    if (!origin) return callback(null, true);
+    if (origin.includes('localhost') || origin.includes('127.0.0.1')) return callback(null, true);
+    if (origin === process.env.FRONTEND_URL) return callback(null, true);
+    callback(null, true);
   },
   credentials: true
 }));
@@ -164,15 +165,29 @@ app.post("/api/leads", [
 app.post("/api/leads/bulk", async (req, res) => {
   try {
     const { leads, csvContent } = req.body;
-    let leadsToInsert = leads;
-    if (csvContent) leadsToInsert = parseCSVLeads(csvContent);
-    if (!leadsToInsert || !Array.isArray(leadsToInsert) || leadsToInsert.length === 0) {
-      return res.status(400).json({ error: "No valid leads" });
+    let leadsToInsert = Array.isArray(leads) ? leads : [];
+    if (csvContent) {
+      const parsed = parseCSVLeads(csvContent);
+      leadsToInsert = [...leadsToInsert, ...parsed];
     }
-    const { data, error } = await supabase.from("leads").insert(leadsToInsert).select();
-    if (error) throw error;
-    res.status(201).json({ imported: data.length });
+    
+    if (leadsToInsert.length === 0) {
+      return res.status(400).json({ error: "No valid leads provided" });
+    }
+
+    // Chunking to avoid massive request sizes if needed (max 1000 per insert)
+    const CHUNK_SIZE = 500;
+    let imported = 0;
+    for (let i = 0; i < leadsToInsert.length; i += CHUNK_SIZE) {
+      const chunk = leadsToInsert.slice(i, i + CHUNK_SIZE);
+      const { data, error } = await supabase.from("leads").insert(chunk).select();
+      if (error) throw error;
+      imported += data.length;
+    }
+
+    res.status(201).json({ imported });
   } catch (error) {
+    console.error("Bulk Import Error:", error.message);
     res.status(500).json({ error: error.message });
   }
 });

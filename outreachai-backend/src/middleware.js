@@ -44,13 +44,22 @@ export function sanitize(str) {
   }).trim().slice(0, 2000);
 }
 
-/** Sanitize all string fields in req.body */
+/** Sanitize all string fields in req.body (including nested arrays) */
 export function sanitizeBody(req, res, next) {
+  const sanitizeValue = (val) => {
+    if (typeof val === "string") return sanitize(val);
+    if (Array.isArray(val)) return val.map(sanitizeValue);
+    if (val && typeof val === "object") {
+      const cleaned = {};
+      for (const k of Object.keys(val)) { cleaned[k] = sanitizeValue(val[k]); }
+      return cleaned;
+    }
+    return val;
+  };
+  
   if (req.body && typeof req.body === "object") {
     for (const key of Object.keys(req.body)) {
-      if (typeof req.body[key] === "string") {
-        req.body[key] = sanitize(req.body[key]);
-      }
+      req.body[key] = sanitizeValue(req.body[key]);
     }
   }
   next();

@@ -5,7 +5,9 @@ import { useState, useEffect, useCallback, useRef, Component } from "react";
 // Backend API Connected (http://localhost:4000)
 // ============================================================
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
+const API = import.meta.env.VITE_API_URL || (typeof window !== "undefined" && (window.location.hostname.includes("vercel.app") || window.location.hostname.includes("onrender.com"))) 
+  ? "https://outreachai-backend.onrender.com/api" 
+  : "http://localhost:4000/api";
 const API_KEY = import.meta.env.VITE_API_KEY || "outreachai-dev-key-2026";
 
 const api = {

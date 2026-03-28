@@ -1,0 +1,38 @@
+services:
+  - type: web
+    name: outreachai-backend
+    env: node
+    buildCommand: cd outreachai-backend && npm install
+    startCommand: cd outreachai-backend && npm start
+    branch: main
+    autoDeploy: false
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: NODE_ENV
+        value: production
+      - key: ENCRYPTION_KEY
+        sync: false
+
+  - type: web
+    name: outreachai-frontend
+    env: static
+    buildCommand: cd outreachai-frontend && npm install && npm run build
+    staticPublishPath: outreachai-frontend/dist
+    branch: main
+    autoDeploy: false
+    envVars:
+      - key: VITE_API_URL
+        sync: false
+      - key: VITE_API_KEY
+        sync: false

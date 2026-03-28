@@ -48,23 +48,7 @@ import { syncReplies, checkAllReplies } from "./replyChecker.js";
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// ============================
-// HEALTH CHECK (Defined before Auth to ensure bypass)
-// ============================
-app.get("/api/health", async (req, res) => {
-  const status = { server: "ok", uptime: process.uptime(), timestamp: new Date().toISOString(), database: "connecting...", redis: "connecting..." };
-  try {
-    const { data } = await supabase.from("app_settings").select("key").limit(1);
-    status.database = data ? "connected" : "error";
-  } catch { status.database = "error"; }
-  try {
-    const q = await getQueueStatus();
-    status.redis = q.error ? "error" : "connected";
-    status.queueLength = q.queueLength;
-  } catch { status.redis = "error"; }
-  res.status(200).json(status);
-});
-
+// (Health check moved below CORS)
 // ===== MIDDLEWARE =====
 app.use(helmet({ contentSecurityPolicy: false })); // CSP disabled for inline styles
 app.use(compression());
@@ -83,7 +67,22 @@ app.use(sanitizeBody);
 app.use(validateInputLengths);
 app.use(requestLogger);
 
-// (Health check moved above middleware)
+// ============================
+// HEALTH CHECK (Defined after CORS, before Auth)
+// ============================
+app.get("/api/health", async (req, res) => {
+  const status = { server: "ok", uptime: process.uptime(), timestamp: new Date().toISOString(), database: "connecting...", redis: "connecting..." };
+  try {
+    const { data } = await supabase.from("app_settings").select("key").limit(1);
+    status.database = data ? "connected" : "error";
+  } catch { status.database = "error"; }
+  try {
+    const q = await getQueueStatus();
+    status.redis = q.error ? "error" : "connected";
+    status.queueLength = q.queueLength;
+  } catch { status.redis = "error"; }
+  res.status(200).json(status);
+});
 
 // API key authentication on all /api routes except /api/health
 app.use("/api", authenticateAPI);
